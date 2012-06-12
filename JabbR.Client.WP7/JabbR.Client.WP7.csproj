@@ -66,6 +66,9 @@
     <Compile Include="..\JabbR.Client\JabbRClient.cs">
       <Link>JabbRClient.cs</Link>
     </Compile>
+    <Compile Include="..\JabbR.Client\Models\ClientMessage.cs">
+      <Link>Models\ClientMessage.cs</Link>
+    </Compile>
     <Compile Include="..\JabbR.Client\Models\LogOnInfo.cs">
       <Link>Models\LogOnInfo.cs</Link>
     </Compile>
