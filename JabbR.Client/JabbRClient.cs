@@ -21,7 +21,7 @@ namespace JabbR.Client
         public JabbRClient(string url)
             : this(url, null)
         { }
-
+        
         public JabbRClient(string url, IClientTransport transport)
         {
             _url = url;
@@ -110,7 +110,8 @@ namespace JabbR.Client
                                                       }
 
                                                       return TaskAsyncHelper.Empty;
-                                                  });
+                                                  })
+                                                  .Catch();
                                               }));
         }
 
