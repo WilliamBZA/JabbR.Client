@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.md in the project root for license information.
+
+using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -9,11 +11,13 @@ namespace JabbR.Client
 {
     internal static class TaskAsyncHelper
     {
-        private static readonly Task _emptyTask = MakeEmpty();
+        private static readonly Task _emptyTask = MakeTask<object>(null);
+        private static readonly Task<bool> _trueTask = MakeTask<bool>(true);
+        private static readonly Task<bool> _falseTask = MakeTask<bool>(false);
 
-        private static Task MakeEmpty()
+        private static Task<T> MakeTask<T>(T value)
         {
-            return FromResult<object>(null);
+            return FromResult<T>(value);
         }
 
         public static Task Empty
@@ -24,6 +28,32 @@ namespace JabbR.Client
             }
         }
 
+        public static Task<bool> True
+        {
+            get
+            {
+                return _trueTask;
+            }
+        }
+
+        public static Task<bool> False
+        {
+            get
+            {
+                return _falseTask;
+            }
+        }
+
+        public static Task OrEmpty(this Task task)
+        {
+            return task ?? Empty;
+        }
+
+        public static Task<T> OrEmpty<T>(this Task<T> task)
+        {
+            return task ?? TaskCache<T>.Empty;
+        }
+
         public static TTask Catch<TTask>(this TTask task) where TTask : Task
         {
             if (task != null && task.Status != TaskStatus.RanToCompletion)
@@ -32,7 +62,7 @@ namespace JabbR.Client
                 {
                     var ex = innerTask.Exception;
                     // observe Exception
-#if !WINDOWS_PHONE && !SILVERLIGHT
+#if !WINDOWS_PHONE && !SILVERLIGHT && !NETFX_CORE
                     Trace.TraceError("SignalR exception thrown by Task: {0}", ex);
 #endif
                 }, TaskContinuationOptions.OnlyOnFaulted);
@@ -40,20 +70,38 @@ namespace JabbR.Client
             return task;
         }
 
-        public static void ContinueWithNotComplete(this Task task, TaskCompletionSource<object> tcs)
+#if PERFCOUNTERS
+        public static TTask Catch<TTask>(this TTask task, params IPerformanceCounter[] counters) where TTask : Task
         {
-            task.ContinueWith(t =>
+            return Catch(task, _ => 
+                {
+                    if (counters == null)
+                    {
+                        return;
+                    }
+                    for (var i = 0; i < counters.Length; i++)
+                    {
+                        counters[i].Increment();
+                    }
+                });
+        }
+#endif
+
+        public static TTask Catch<TTask>(this TTask task, Action<AggregateException> handler) where TTask : Task
+        {
+            if (task != null && task.Status != TaskStatus.RanToCompletion)
             {
-                if (t.IsFaulted)
+                task.ContinueWith(innerTask =>
                 {
-                    tcs.TrySetException(t.Exception);
-                }
-                else if (t.IsCanceled)
-                {
-                    tcs.TrySetCanceled();
-                }
-            },
-            TaskContinuationOptions.NotOnRanToCompletion);
+                    var ex = innerTask.Exception;
+                    // observe Exception
+#if !WINDOWS_PHONE && !SILVERLIGHT && !NETFX_CORE
+                    Trace.TraceError("SignalR exception thrown by Task: {0}", ex);
+#endif
+                    handler(ex);
+                }, TaskContinuationOptions.OnlyOnFaulted);
+            }
+            return task;
         }
 
         public static void ContinueWithNotComplete<T>(this Task task, TaskCompletionSource<T> tcs)
@@ -62,11 +110,11 @@ namespace JabbR.Client
             {
                 if (t.IsFaulted)
                 {
-                    tcs.TrySetException(t.Exception);
+                    tcs.SetException(t.Exception);
                 }
                 else if (t.IsCanceled)
                 {
-                    tcs.TrySetCanceled();
+                    tcs.SetCanceled();
                 }
             },
             TaskContinuationOptions.NotOnRanToCompletion);
@@ -91,13 +139,31 @@ namespace JabbR.Client
             });
         }
 
+        public static void ContinueWith<T>(this Task<T> task, TaskCompletionSource<T> tcs)
+        {
+            task.ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                {
+                    tcs.TrySetException(t.Exception);
+                }
+                else if (t.IsCanceled)
+                {
+                    tcs.TrySetCanceled();
+                }
+                else
+                {
+                    tcs.TrySetResult(t.Result);
+                }
+            });
+        }
+
         /// <summary>
         /// Passes a task returning function into another task returning function so that
         /// it can decide when it starts and returns a task that completes when all are finished
         /// </summary>
-        public static Task Interleave<T>(Func<T, Action, Task> before, Func<Task> after, T arg)
+        public static Task Interleave<T>(Func<T, Action, Task> before, Func<Task> after, T arg, TaskCompletionSource<object> tcs)
         {
-            var tcs = new TaskCompletionSource<object>();
             var tasks = new[] {
                             tcs.Task,
                             before(arg, () => after().ContinueWith(tcs))
@@ -161,18 +227,18 @@ namespace JabbR.Client
                 var faulted = completedTasks.FirstOrDefault(t => t.IsFaulted);
                 if (faulted != null)
                 {
-                    tcs.TrySetException(faulted.Exception);
+                    tcs.SetException(faulted.Exception);
                     return;
                 }
                 var cancelled = completedTasks.FirstOrDefault(t => t.IsCanceled);
                 if (cancelled != null)
                 {
-                    tcs.TrySetCanceled();
+                    tcs.SetCanceled();
                     return;
                 }
 
                 successor();
-                tcs.TrySetResult(null);
+                tcs.SetResult(null);
             });
 
             return tcs.Task;
@@ -415,6 +481,9 @@ namespace JabbR.Client
 
         public static Task Delay(TimeSpan timeOut)
         {
+#if NETFX_CORE
+            return Task.Delay(timeOut);
+#else
             var tcs = new TaskCompletionSource<object>();
 
             var timer = new Timer(tcs.SetResult,
@@ -427,6 +496,7 @@ namespace JabbR.Client
                 timer.Dispose();
             },
             TaskContinuationOptions.ExecuteSynchronously);
+#endif
         }
 
         public static Task AllSucceeded(this Task[] tasks, Action continuation)
@@ -532,10 +602,11 @@ namespace JabbR.Client
         public static Task<T> FromResult<T>(T value)
         {
             var tcs = new TaskCompletionSource<T>();
-            tcs.TrySetResult(value);
+            tcs.SetResult(value);
             return tcs.Task;
         }
 
+#if !NETFX_CORE
         public static TaskContinueWithMethod GetContinueWith(Type taskType)
         {
             var continueWith = (from m in taskType.GetMethods()
@@ -553,32 +624,33 @@ namespace JabbR.Client
                 .FirstOrDefault();
             return continueWith;
         }
+#endif
 
         internal static Task FromError(Exception e)
         {
             var tcs = new TaskCompletionSource<object>();
-            tcs.TrySetException(e);
+            tcs.SetException(e);
             return tcs.Task;
         }
 
         internal static Task<T> FromError<T>(Exception e)
         {
             var tcs = new TaskCompletionSource<T>();
-            tcs.TrySetException(e);
+            tcs.SetException(e);
             return tcs.Task;
         }
 
         private static Task Canceled()
         {
             var tcs = new TaskCompletionSource<object>();
-            tcs.TrySetCanceled();
+            tcs.SetCanceled();
             return tcs.Task;
         }
 
         private static Task<T> Canceled<T>()
         {
             var tcs = new TaskCompletionSource<T>();
-            tcs.TrySetCanceled();
+            tcs.SetCanceled();
             return tcs.Task;
         }
 
@@ -595,22 +667,22 @@ namespace JabbR.Client
             {
                 if (t.IsFaulted)
                 {
-                    tcs.TrySetException(t.Exception);
+                    tcs.SetException(t.Exception);
                 }
                 else if (t.IsCanceled)
                 {
-                    tcs.TrySetCanceled();
+                    tcs.SetCanceled();
                 }
                 else
                 {
                     try
                     {
                         successor();
-                        tcs.TrySetResult(null);
+                        tcs.SetResult(null);
                     }
                     catch (Exception ex)
                     {
-                        tcs.TrySetException(ex);
+                        tcs.SetException(ex);
                     }
                 }
             });
@@ -627,22 +699,22 @@ namespace JabbR.Client
                 {
                     if (t.IsFaulted)
                     {
-                        tcs.TrySetException(t.Exception);
+                        tcs.SetException(t.Exception);
                     }
                     else if (t.IsCanceled)
                     {
-                        tcs.TrySetCanceled();
+                        tcs.SetCanceled();
                     }
                     else
                     {
                         try
                         {
                             successor(t.Result);
-                            tcs.TrySetResult(null);
+                            tcs.SetResult(null);
                         }
                         catch (Exception ex)
                         {
-                            tcs.TrySetException(ex);
+                            tcs.SetException(ex);
                         }
                     }
                 });
@@ -657,21 +729,21 @@ namespace JabbR.Client
                 {
                     if (t.IsFaulted)
                     {
-                        tcs.TrySetException(t.Exception);
+                        tcs.SetException(t.Exception);
                     }
                     else if (t.IsCanceled)
                     {
-                        tcs.TrySetCanceled();
+                        tcs.SetCanceled();
                     }
                     else
                     {
                         try
                         {
-                            tcs.TrySetResult(successor());
+                            tcs.SetResult(successor());
                         }
                         catch (Exception ex)
                         {
-                            tcs.TrySetException(ex);
+                            tcs.SetException(ex);
                         }
                     }
                 });
@@ -686,21 +758,21 @@ namespace JabbR.Client
                 {
                     if (task.IsFaulted)
                     {
-                        tcs.TrySetException(t.Exception);
+                        tcs.SetException(t.Exception);
                     }
                     else if (task.IsCanceled)
                     {
-                        tcs.TrySetCanceled();
+                        tcs.SetCanceled();
                     }
                     else
                     {
                         try
                         {
-                            tcs.TrySetResult(successor(t));
+                            tcs.SetResult(successor(t));
                         }
                         catch (Exception ex)
                         {
-                            tcs.TrySetException(ex);
+                            tcs.SetException(ex);
                         }
                     }
                 });
@@ -741,6 +813,11 @@ namespace JabbR.Client
                 return TaskRunners<object, Task>.RunTask(task, () => successor(arg1));
             }
 
+            internal static Task<Task> ThenWithArgs(Task task, Func<T1, T2, Task> successor, T1 arg1, T2 arg2)
+            {
+                return TaskRunners<object, Task>.RunTask(task, () => successor(arg1, arg2));
+            }
+
             internal static Task<Task<TResult>> ThenWithArgs(Task<T> task, Func<T, T1, Task<TResult>> successor, T1 arg1)
             {
                 return TaskRunners<T, Task<TResult>>.RunTask(task, t => successor(t.Result, arg1));
@@ -750,6 +827,11 @@ namespace JabbR.Client
             {
                 return TaskRunners<T, Task<T>>.RunTask(task, t => successor(t, arg1));
             }
+        }
+
+        private static class TaskCache<T>
+        {
+            public static Task<T> Empty = MakeTask<T>(default(T));
         }
     }
 }

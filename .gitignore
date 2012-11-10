@@ -8,3 +8,4 @@ msbuild.log
 _Resharper*/
 
 *.ncrunchsolution
+TestResults/
