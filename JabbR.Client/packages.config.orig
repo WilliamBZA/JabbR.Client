@@ -1,5 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <packages>
+<<<<<<< HEAD
+  <package id="Newtonsoft.Json" version="4.5.7" />
+  <package id="SignalR.Client" version="0.5.1" />
+=======
   <package id="Newtonsoft.Json" version="4.5.7" targetFramework="net40" />
   <package id="SignalR.Client" version="0.5.2" targetFramework="net40" />
+>>>>>>> dd23ae21c39aa6dc25f3722b33e6496c890b309a
 </packages>
