@@ -11,10 +11,13 @@ using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
+using GalaSoft.MvvmLight.Messaging;
+using JabbR.WinRT.Infrastructure;
+using Windows.UI.Core;
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234238
 
-namespace JabbR.WinRT
+namespace JabbR.WinRT.Views
 {
     /// <summary>
     /// An empty page that can be used on its own or navigated to within a Frame.
@@ -33,6 +36,14 @@ namespace JabbR.WinRT
         /// property is typically used to configure the page.</param>
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
+            Messenger.Default.Register<NavigateToMessage>(this, (msg) => 
+                {
+                    Dispatcher.RunAsync(CoreDispatcherPriority.High, () =>
+                        {
+                            Frame.Navigate(msg.NavigateToType, msg);
+                        });
+                }
+            );
         }
     }
 }

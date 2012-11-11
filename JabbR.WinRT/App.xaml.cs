@@ -1,4 +1,6 @@
-﻿using System;
+﻿using JabbR.WinRT.Infrastructure.Settings;
+using JabbR.WinRT.Views;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -23,6 +25,8 @@ namespace JabbR.WinRT
     /// </summary>
     sealed partial class App : Application
     {
+        private  Settings _settings;
+
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
         /// executed, and as such is the logical equivalent of main() or WinMain().
@@ -31,6 +35,19 @@ namespace JabbR.WinRT
         {
             this.InitializeComponent();
             this.Suspending += OnSuspending;
+        }
+
+        public Settings Settings
+        {
+            get
+            {
+                if (_settings == null)
+                {
+                    _settings = new Settings();
+                }
+
+                return _settings;
+            }
         }
 
         /// <summary>

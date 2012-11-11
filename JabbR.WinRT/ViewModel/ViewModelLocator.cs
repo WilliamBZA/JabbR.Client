@@ -43,6 +43,7 @@ namespace JabbR.WinRT.ViewModel
             ////}
 
             SimpleIoc.Default.Register<MainViewModel>();
+            SimpleIoc.Default.Register<DashboardViewModel>();
         }
 
         public MainViewModel Main
@@ -50,6 +51,14 @@ namespace JabbR.WinRT.ViewModel
             get
             {
                 return ServiceLocator.Current.GetInstance<MainViewModel>();
+            }
+        }
+
+        public DashboardViewModel Dashboard
+        {
+            get
+            {
+                return ServiceLocator.Current.GetInstance<DashboardViewModel>();
             }
         }
         

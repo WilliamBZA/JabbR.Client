@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace JabbR.Client
 {
-    internal static class TaskAsyncHelper
+    public static class TaskAsyncHelper
     {
         private static readonly Task _emptyTask = MakeTask<object>(null);
         private static readonly Task<bool> _trueTask = MakeTask<bool>(true);
@@ -654,7 +654,7 @@ namespace JabbR.Client
             return tcs.Task;
         }
 
-        internal class TaskContinueWithMethod
+        public class TaskContinueWithMethod
         {
             public MethodInfo Method { get; set; }
             public Type Type { get; set; }
