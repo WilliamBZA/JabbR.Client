@@ -11,6 +11,7 @@ using JabbR.WinRT.Views;
 using Windows.UI.Xaml;
 using GalaSoft.MvvmLight.Threading;
 using System.Threading.Tasks;
+using JabbR.WinRT.Infrastructure.Messages;
 
 namespace JabbR.WinRT.ViewModel
 {
@@ -49,6 +50,8 @@ namespace JabbR.WinRT.ViewModel
 
                 Task.Factory.StartNew(() =>
                     {
+                        //((App)App.Current).Settings.UserId = null;
+
                         if (string.IsNullOrWhiteSpace(((App)App.Current).Settings.UserId))
                         {
                             Username = null;
@@ -124,6 +127,8 @@ namespace JabbR.WinRT.ViewModel
             LoadingControlVisible = Visibility.Visible;
 
             _client = new JabbR.Client.JabbRClient("http://Jabbr.net");
+            SubscribeToEvents(_client);
+            
             _client.Connect(UserId)
                 .Then(logonInfo =>
                 {
@@ -143,6 +148,193 @@ namespace JabbR.WinRT.ViewModel
 
                     LogOn();
                 });
+        }
+
+        private void SubscribeToEvents(JabbRClient client)
+        {
+            client.AddMessageContent += (messageId, extractedContent, roomName) =>
+            {
+                MessengerInstance.Send(new AddMessageContentMessage
+                {
+                    MessageId = messageId,
+                    ExtractedContent = extractedContent,
+                    RoomName = roomName
+                });
+            };
+
+            client.Disconnected += () =>
+            {
+                MessengerInstance.Send(new DisconnectMessage());
+            };
+
+            client.FlagChanged += (user, room) =>
+            {
+                MessengerInstance.Send(new FlagChangedMessage
+                {
+                    User = user,
+                    Room = room
+                });
+            };
+
+            client.GravatarChanged += (user, room) =>
+            {
+                MessengerInstance.Send(new GravatarChangedMessage
+                {
+                    User = user,
+                    Room = room
+                });
+            };
+
+            client.JoinedRoom += room =>
+            {
+                MessengerInstance.Send(new JoinedRoomMessage
+                {
+                    Room = room
+                });
+            };
+
+            client.Kicked += room =>
+            {
+                MessengerInstance.Send(new KickedMessage
+                {
+                    Room = room
+                });
+            };
+
+            client.LoggedOut += rooms =>
+            {
+                MessengerInstance.Send(new LoggedOutMessage
+                {
+                    Rooms = rooms
+                });
+            };
+
+            client.MeMessageReceived += (user, content, room) =>
+            {
+                MessengerInstance.Send(new MeMessageReceivedMessage
+                {
+                    User = user,
+                    Content = content,
+                    Room = room
+                });
+            };
+
+            client.MessageReceived += (message, room) =>
+            {
+                MessengerInstance.Send(new MessageReceivedMessage
+                {
+                    Message = message,
+                    Room = room
+                });
+            };
+
+            client.NoteChanged += (user, room) =>
+            {
+                MessengerInstance.Send(new NoteChangedMessage
+                {
+                    User = user,
+                    Room = room
+                });
+            };
+
+            client.OwnerAdded += (user, room) =>
+            {
+                MessengerInstance.Send(new OwnerAddedMessage
+                {
+                    User = user,
+                    Room = room
+                });
+            };
+
+            client.OwnerRemoved += (user, room) =>
+            {
+                MessengerInstance.Send(new OwnerRemovedMessage
+                {
+                    User = user,
+                    Room = room
+                });
+            };
+
+            client.PrivateMessage += (from, to, message) =>
+            {
+                MessengerInstance.Send(new PrivateMessageMessage
+                {
+                    From = from,
+                    To = to,
+                    Message = message
+                });
+            };
+
+            client.RoomCountChanged += (room, count) =>
+            {
+                MessengerInstance.Send(new RoomCountChangedMessage
+                {
+                    Room = room,
+                    Count = count
+                });
+            };
+
+            client.TopicChanged += (room) =>
+            {
+                MessengerInstance.Send(new TopicChangedMessage
+                {
+                    Room = room
+                });
+            };
+
+            client.UserActivityChanged += user =>
+            {
+                MessengerInstance.Send(new UserActivityChangedMessage
+                {
+                    User = user
+                });
+            };
+
+            client.UserJoined += (user, room, isOwner) =>
+            {
+                MessengerInstance.Send(new UserJoinedMessage
+                {
+                    User = user,
+                    Room = room,
+                    IsOwner = isOwner
+                });
+            };
+
+            client.UserLeft += (user, room) =>
+            {
+                MessengerInstance.Send(new UserLeftMessage
+                {
+                    User = user,
+                    Room = room
+                });
+            };
+
+            client.UsernameChanged += (oldUserName, user, room) =>
+            {
+                MessengerInstance.Send(new UsernameChangedMessage
+                {
+                    OldUserName = oldUserName,
+                    User = user,
+                    Room = room
+                });
+            };
+
+            client.UsersInactive += (users) =>
+            {
+                MessengerInstance.Send(new UsersInactiveMessage
+                {
+                    Users = users
+                });
+            };
+
+            client.UserTyping += (user, room) =>
+            {
+                MessengerInstance.Send(new UserTypingMessage
+                {
+                    User = user,
+                    Room = room
+                });
+            };
         }
     }
 }

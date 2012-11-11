@@ -5,9 +5,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace JabbR.WinRT.Infrastructure
+namespace JabbR.WinRT.Infrastructure.Messages
 {
-    public class NavigateToMessage
+    public class NavigateToMessage : BaseMessage
     {
         public Type NavigateToType { get; set; }
 

@@ -17,6 +17,9 @@ using Windows.UI.Xaml.Navigation;
 using JabbR.Client;
 using JabbR.WinRT.ViewModel;
 using JabbR.WinRT.Infrastructure.ObjectMapper;
+using JabbR.WinRT.Infrastructure.Messages;
+using GalaSoft.MvvmLight.Messaging;
+using Windows.UI.Core;
 
 // The Split Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234234
 
@@ -39,13 +42,22 @@ namespace JabbR.WinRT.Views
             var dataContext = DataContext as DashboardViewModel;
 
             dataContext.SetClient(navigateMessage.Client);
-            foreach (var room in navigateMessage.LogOnInfo.Rooms)
+            foreach (var room in navigateMessage.LogOnInfo.Rooms.OrderBy(r => r.Name))
             {
                 var roomViewModel = ObjectMapper.DefaultInstance.GetMapper<Room, RoomViewModel>().Map(room);
 
                 dataContext.Rooms.Add(roomViewModel);
                 dataContext.LoadRoomDetails(roomViewModel);
             }
+
+            Messenger.Default.Register<MessageSuccessfullySentMessage>(this, (msg) =>
+            {
+                Dispatcher.RunAsync(CoreDispatcherPriority.Low, () =>
+                    {
+                        MessageText.Text = string.Empty;
+                        MessageText.Focus(Windows.UI.Xaml.FocusState.Programmatic);
+                    });
+            });
         }
 
         #region Page state management
@@ -142,6 +154,16 @@ namespace JabbR.WinRT.Views
             // to showing the selected item's details.  When the selection is cleared this has the
             // opposite effect.
             if (this.UsingLogicalPageNavigation()) this.InvalidateVisualState();
+
+            foreach (RoomViewModel room in itemListView.Items)
+            {
+                room.IsActive = false;
+            }
+
+            if (itemListView.SelectedItem != null)
+            {
+                ((RoomViewModel)itemListView.SelectedItem).IsActive = true;
+            }
         }
 
         /// <summary>
@@ -205,38 +227,9 @@ namespace JabbR.WinRT.Views
         private void ListBox_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             var senderControl = (sender as FrameworkElement);
-            if (e.NewSize.Height - 100 > 0)
+            if (itemDetailGrid.RowDefinitions[2].ActualHeight - 60 > 0)
             {
-                ContentWebView.Height = e.NewSize.Height - 100;
-            }
-            if (e.NewSize.Width - 50 > 0)
-            {
-                ContentWebView.Width = e.NewSize.Width - 50;
-            }
-            //var numChildren = VisualTreeHelper.GetChildrenCount(senderControl);
-            //for (int x = 0; x < numChildren; x++)
-            //{
-            //    var child = VisualTreeHelper.GetChild(senderControl, x);
-            //    SetChildrenWidth(child as FrameworkElement, e.NewSize.Width);
-            //    if (child is FrameworkElement)
-            //    {
-            //        (child as FrameworkElement).Width = e.NewSize.Width;
-            //    }
-            //}
-        }
-
-        private void SetChildrenWidth(FrameworkElement frameworkElement, double width)
-        {
-            if (frameworkElement != null)
-            {
-                frameworkElement.Width = width;
-
-                var numChildren = VisualTreeHelper.GetChildrenCount(frameworkElement);
-                for (int x = 0; x < numChildren; x++)
-                {
-                    var child = VisualTreeHelper.GetChild(frameworkElement, x);
-                    SetChildrenWidth(child as FrameworkElement, width);
-                }
+                ContentWebView.MaxHeight = itemDetailGrid.RowDefinitions[2].ActualHeight - 60;
             }
         }
     }

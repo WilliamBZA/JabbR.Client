@@ -68,8 +68,8 @@ namespace JabbR.WinRT.Controls
 })();
 </script>
     
-    <a class=""janrainEngage"" id=""janrainSignIn"" href=""#"">click me</a>
-    <div id=""janrainEngageEmbed"">sadsad</div>
+    <a class=""janrainEngage"" id=""janrainSignIn"" href=""#""></a>
+    <div id=""janrainEngageEmbed""></div>
 <script type=""text/javascript"">
     function fireClick() {
         var elem = ""janrainSignIn"";
@@ -88,7 +88,9 @@ namespace JabbR.WinRT.Controls
         var janrain = document.getElementById(""janrainModal"");
         janrain.style.top = ""0px"";
         janrain.style.marginTop = ""10px"";
-    }    
+    }
+
+    setTimeout(""fireClick()"", 1500);
 </script>
 </body>
 </html>";
